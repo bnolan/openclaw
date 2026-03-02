@@ -107,7 +107,7 @@ export const en: TranslationMap = {
     },
   },
   chat: {
-    disconnected: "Disconnected from gateway.",
+    disconnected: "Disconnected from party.",
     refreshTitle: "Refresh chat data",
     thinkingToggle: "Toggle assistant thinking/working output",
     focusToggle: "Toggle focus mode (hide sidebar + page header)",

@@ -113,7 +113,7 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
 }
 
 .brand-logo {
@@ -131,14 +131,15 @@
 .brand-text {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 
 .brand-title {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
+  font-family: system-ui, "Helvetica Neue", sans-serif;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -1.2px;
+  line-height: 36px;
   color: var(--text-strong);
 }
 
