@@ -70,6 +70,7 @@ import { resolveConfiguredCronModelSuggestions } from "./views/agents-utils.ts";
 import { renderAgents } from "./views/agents.ts";
 import { renderChannels } from "./views/channels.ts";
 import { renderChat } from "./views/chat.ts";
+import { renderCalendar } from "./views/calendar.ts";
 import { renderConfig } from "./views/config.ts";
 import { renderCron } from "./views/cron.ts";
 import { renderDebug } from "./views/debug.ts";
@@ -394,6 +395,25 @@ export function renderApp(state: AppViewState) {
         onNostrProfileSave: () => state.handleNostrProfileSave(),
         onNostrProfileImport: () => state.handleNostrProfileImport(),
         onNostrProfileToggleAdvanced: () => state.handleNostrProfileToggleAdvanced(),
+      })
+      : nothing
+    }
+
+        ${state.tab === "calendar"
+      ? renderCalendar({
+        loading: state.calendarLoading,
+        error: state.calendarError,
+        feedUrl: state.calendarFeedUrl,
+        events: state.calendarEvents,
+        lastLoadedAt: state.calendarLastLoadedAt,
+        onFeedUrlChange: (next) => {
+          state.calendarFeedUrl = next;
+          state.applySettings({
+            ...state.settings,
+            calendarFeedUrl: next,
+          });
+        },
+        onReload: () => state.loadCalendar(),
       })
       : nothing
     }

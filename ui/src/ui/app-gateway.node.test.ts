@@ -73,6 +73,7 @@ function createHost() {
       token: "",
       sessionKey: "main",
       lastActiveSessionKey: "main",
+      calendarFeedUrl: "/radicale/calendar.ics",
       theme: "system",
       chatFocusMode: false,
       chatShowThinking: true,

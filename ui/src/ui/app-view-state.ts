@@ -18,6 +18,7 @@ import type {
   AgentsListResult,
   AgentsFilesListResult,
   AgentIdentityResult,
+  CalendarEvent,
   ChannelsStatusSnapshot,
   ConfigSnapshot,
   ConfigUiHints,
@@ -65,6 +66,11 @@ export type AppViewState = {
   assistantAvatar: string | null;
   assistantAgentId: string | null;
   sessionKey: string;
+  calendarFeedUrl: string;
+  calendarLoading: boolean;
+  calendarError: string | null;
+  calendarEvents: CalendarEvent[];
+  calendarLastLoadedAt: number | null;
   chatLoading: boolean;
   chatSending: boolean;
   chatMessage: string;
@@ -275,6 +281,7 @@ export type AppViewState = {
   loadOverview: () => Promise<void>;
   loadAssistantIdentity: () => Promise<void>;
   loadCron: () => Promise<void>;
+  loadCalendar: () => Promise<void>;
   handleWhatsAppStart: (force: boolean) => Promise<void>;
   handleWhatsAppWait: () => Promise<void>;
   handleWhatsAppLogout: () => Promise<void>;

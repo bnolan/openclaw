@@ -9,6 +9,7 @@ export type UiSettings = {
   token: string;
   sessionKey: string;
   lastActiveSessionKey: string;
+  calendarFeedUrl: string;
   theme: ThemeMode;
   chatFocusMode: boolean;
   chatShowThinking: boolean;
@@ -36,6 +37,7 @@ export function loadSettings(): UiSettings {
     token: "",
     sessionKey: "main",
     lastActiveSessionKey: "main",
+    calendarFeedUrl: "/radicale/calendar.ics",
     theme: "system",
     chatFocusMode: false,
     chatShowThinking: true,
@@ -65,6 +67,10 @@ export function loadSettings(): UiSettings {
           ? parsed.lastActiveSessionKey.trim()
           : (typeof parsed.sessionKey === "string" && parsed.sessionKey.trim()) ||
             defaults.lastActiveSessionKey,
+      calendarFeedUrl:
+        typeof parsed.calendarFeedUrl === "string" && parsed.calendarFeedUrl.trim()
+          ? parsed.calendarFeedUrl.trim()
+          : defaults.calendarFeedUrl,
       theme:
         parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
           ? parsed.theme

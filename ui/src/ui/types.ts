@@ -647,3 +647,14 @@ export type LogEntry = {
   message?: string | null;
   meta?: Record<string, unknown> | null;
 };
+
+export type CalendarEvent = {
+  uid: string;
+  summary: string;
+  description?: string | null;
+  location?: string | null;
+  startMs: number;
+  endMs: number | null;
+  allDay: boolean;
+  source: string;
+};

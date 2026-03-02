@@ -11,6 +11,7 @@ import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-iden
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents, loadToolsCatalog } from "./controllers/agents.ts";
 import { loadChannels } from "./controllers/channels.ts";
+import { loadCalendarEvents } from "./controllers/calendar.ts";
 import { loadConfig, loadConfigSchema } from "./controllers/config.ts";
 import {
   loadCronJobs,
@@ -198,6 +199,9 @@ export async function refreshActiveTab(host: SettingsHost) {
   }
   if (host.tab === "cron") {
     await loadCron(host);
+  }
+  if (host.tab === "calendar") {
+    await loadCalendarEvents(host as unknown as OpenClawApp);
   }
   if (host.tab === "skills") {
     await loadSkills(host as unknown as OpenClawApp);

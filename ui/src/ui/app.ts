@@ -53,6 +53,7 @@ import {
 import type { AppViewState } from "./app-view-state.ts";
 import { normalizeAssistantIdentity } from "./assistant-identity.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
+import { loadCalendarEvents } from "./controllers/calendar.ts";
 import type { CronFieldErrors } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
@@ -66,6 +67,7 @@ import type {
   AgentsListResult,
   AgentsFilesListResult,
   AgentIdentityResult,
+  CalendarEvent,
   ConfigSnapshot,
   ConfigUiHints,
   CronJob,
@@ -137,6 +139,11 @@ export class OpenClawApp extends LitElement {
   @state() assistantAgentId = bootAssistantIdentity.agentId ?? null;
 
   @state() sessionKey = this.settings.sessionKey;
+  @state() calendarFeedUrl = this.settings.calendarFeedUrl;
+  @state() calendarLoading = false;
+  @state() calendarError: string | null = null;
+  @state() calendarEvents: CalendarEvent[] = [];
+  @state() calendarLastLoadedAt: number | null = null;
   @state() chatLoading = false;
   @state() chatSending = false;
   @state() chatMessage = "";
@@ -477,6 +484,10 @@ export class OpenClawApp extends LitElement {
 
   async loadCron() {
     await loadCronInternal(this as unknown as Parameters<typeof loadCronInternal>[0]);
+  }
+
+  async loadCalendar() {
+    await loadCalendarEvents(this);
   }
 
   async handleAbortChat() {
