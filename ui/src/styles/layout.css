@@ -135,12 +135,28 @@
 }
 
 .brand-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
   font-family: system-ui, "Helvetica Neue", sans-serif;
   font-size: 32px;
   font-weight: 600;
   letter-spacing: -1.2px;
   line-height: 36px;
   color: var(--text-strong);
+}
+
+.brand-mark {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  color: #000000;
+}
+
+.brand-mark svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
 }
 
 .brand-sub {
