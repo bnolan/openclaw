@@ -53,7 +53,12 @@ import {
 import type { AppViewState } from "./app-view-state.ts";
 import { normalizeAssistantIdentity } from "./assistant-identity.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
-import { loadCalendarEvents } from "./controllers/calendar.ts";
+import {
+  loadCalendarEvents,
+  loadLocalCalendarEvents,
+  removeLocalCalendarEvent,
+  upsertLocalCalendarEvent,
+} from "./controllers/calendar.ts";
 import type { CronFieldErrors } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
@@ -67,6 +72,7 @@ import type {
   AgentsListResult,
   AgentsFilesListResult,
   AgentIdentityResult,
+  CalendarDraftEvent,
   CalendarEvent,
   ConfigSnapshot,
   ConfigUiHints,
@@ -96,6 +102,32 @@ declare global {
 
 const bootAssistantIdentity = normalizeAssistantIdentity({});
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function dateKeyFromMs(ms: number): string {
+  const date = new Date(ms);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function startOfMonthMs(ms: number): number {
+  const date = new Date(ms);
+  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+}
+
+function createCalendarDraft(date: string): CalendarDraftEvent {
+  return {
+    summary: "",
+    date,
+    startTime: "09:00",
+    endTime: "10:00",
+    allDay: false,
+    location: "",
+    description: "",
+  };
+}
+
 function resolveOnboardingMode(): boolean {
   if (!window.location.search) {
     return false;
@@ -119,6 +151,7 @@ export class OpenClawApp extends LitElement {
     if (isSupportedLocale(this.settings.locale)) {
       void i18n.setLocale(this.settings.locale);
     }
+    loadLocalCalendarEvents(this);
   }
   @state() password = "";
   @state() tab: Tab = "chat";
@@ -143,7 +176,11 @@ export class OpenClawApp extends LitElement {
   @state() calendarLoading = false;
   @state() calendarError: string | null = null;
   @state() calendarEvents: CalendarEvent[] = [];
+  @state() calendarLocalEvents: CalendarEvent[] = [];
   @state() calendarLastLoadedAt: number | null = null;
+  @state() calendarCursorMonthMs = startOfMonthMs(Date.now());
+  @state() calendarSelectedDate = dateKeyFromMs(Date.now());
+  @state() calendarDraft: CalendarDraftEvent = createCalendarDraft(dateKeyFromMs(Date.now()));
   @state() chatLoading = false;
   @state() chatSending = false;
   @state() chatMessage = "";
@@ -488,6 +525,14 @@ export class OpenClawApp extends LitElement {
 
   async loadCalendar() {
     await loadCalendarEvents(this);
+  }
+
+  upsertLocalCalendarEvent(event: CalendarEvent) {
+    upsertLocalCalendarEvent(this, event);
+  }
+
+  removeLocalCalendarEvent(uid: string) {
+    removeLocalCalendarEvent(this, uid);
   }
 
   async handleAbortChat() {

@@ -1,14 +1,17 @@
 import type { CalendarEvent } from "../types.ts";
+import { normalizeBasePath } from "../navigation.ts";
 
-const UPCOMING_EVENT_LIMIT = 200;
-const PAST_WINDOW_MS = 24 * 60 * 60 * 1000;
+const CALENDAR_EVENT_LIMIT = 2000;
+const CALENDAR_LOCAL_STORAGE_KEY = "openclaw.control.calendar.local-events.v1";
 
 export type CalendarState = {
   calendarFeedUrl: string;
   calendarLoading: boolean;
   calendarError: string | null;
   calendarEvents: CalendarEvent[];
+  calendarLocalEvents: CalendarEvent[];
   calendarLastLoadedAt: number | null;
+  basePath?: string;
 };
 
 type ParsedDate = {
@@ -160,14 +163,25 @@ function normalizeSources(input: string): string[] {
     .filter(Boolean);
 }
 
-function normalizeFetchUrl(url: string): string {
+function normalizeFetchUrl(url: string, basePath = ""): string {
+  const base = normalizeBasePath(basePath);
   if (/^https?:\/\//i.test(url)) {
     return url;
   }
-  if (url.startsWith("/")) {
-    return url;
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return base || "/";
   }
-  return `/${url}`;
+  if (trimmed.startsWith("/")) {
+    if (!base || trimmed === base || trimmed.startsWith(`${base}/`)) {
+      return trimmed;
+    }
+    return `${base}${trimmed}`;
+  }
+  if (!base) {
+    return `/${trimmed}`;
+  }
+  return `${base}/${trimmed}`;
 }
 
 export async function loadCalendarEvents(state: CalendarState) {
@@ -185,7 +199,7 @@ export async function loadCalendarEvents(state: CalendarState) {
   try {
     const fetched = await Promise.all(
       sources.map(async (source) => {
-        const res = await fetch(normalizeFetchUrl(source), {
+        const res = await fetch(normalizeFetchUrl(source, state.basePath ?? ""), {
           method: "GET",
           headers: {
             Accept: "text/calendar, text/plain;q=0.9, */*;q=0.8",
@@ -199,15 +213,10 @@ export async function loadCalendarEvents(state: CalendarState) {
         return parseIcsEvents(raw, source);
       }),
     );
-    const now = Date.now();
     state.calendarEvents = fetched
       .flat()
-      .filter((event) => {
-        const end = event.endMs ?? event.startMs;
-        return end >= now - PAST_WINDOW_MS;
-      })
       .toSorted((a, b) => a.startMs - b.startMs)
-      .slice(0, UPCOMING_EVENT_LIMIT);
+      .slice(0, CALENDAR_EVENT_LIMIT);
     state.calendarLastLoadedAt = Date.now();
   } catch (err) {
     state.calendarError = err instanceof Error ? err.message : String(err);
@@ -215,4 +224,67 @@ export async function loadCalendarEvents(state: CalendarState) {
   } finally {
     state.calendarLoading = false;
   }
+}
+
+function safeParseLocalEvents(raw: string | null): CalendarEvent[] {
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw) as CalendarEvent[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      const event = entry as CalendarEvent;
+      return (
+        typeof event.uid === "string" &&
+        typeof event.summary === "string" &&
+        typeof event.startMs === "number" &&
+        Number.isFinite(event.startMs) &&
+        typeof event.source === "string"
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+function persistLocalEvents(events: CalendarEvent[]) {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+  localStorage.setItem(CALENDAR_LOCAL_STORAGE_KEY, JSON.stringify(events));
+}
+
+export function loadLocalCalendarEvents(state: CalendarState) {
+  if (typeof localStorage === "undefined") {
+    state.calendarLocalEvents = [];
+    return;
+  }
+  state.calendarLocalEvents = safeParseLocalEvents(
+    localStorage.getItem(CALENDAR_LOCAL_STORAGE_KEY),
+  )
+    .map((entry) => ({
+      ...entry,
+      source: "local",
+    }))
+    .toSorted((a, b) => a.startMs - b.startMs);
+}
+
+export function upsertLocalCalendarEvent(state: CalendarState, event: CalendarEvent) {
+  const next = [...state.calendarLocalEvents.filter((entry) => entry.uid !== event.uid), event].toSorted(
+    (a, b) => a.startMs - b.startMs,
+  );
+  state.calendarLocalEvents = next;
+  persistLocalEvents(next);
+}
+
+export function removeLocalCalendarEvent(state: CalendarState, uid: string) {
+  const next = state.calendarLocalEvents.filter((entry) => entry.uid !== uid);
+  state.calendarLocalEvents = next;
+  persistLocalEvents(next);
 }

@@ -123,6 +123,40 @@ function uniquePreserveOrder(values: string[]): string[] {
   return output;
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function dateKeyFromMs(ms: number): string {
+  const date = new Date(ms);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function startOfMonthMs(ms: number): number {
+  const date = new Date(ms);
+  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+}
+
+function parseLocalDateTime(dateValue: string, timeValue: string): number | null {
+  const dateMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeMatch = timeValue.match(/^(\d{2}):(\d{2})$/);
+  if (!dateMatch || !timeMatch) {
+    return null;
+  }
+  const [, y, m, d] = dateMatch;
+  const [, hh, mm] = timeMatch;
+  const ms = new Date(
+    Number(y),
+    Number(m) - 1,
+    Number(d),
+    Number(hh),
+    Number(mm),
+    0,
+    0,
+  ).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
 function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
   const list = state.agentsList?.agents ?? [];
   const parsed = parseAgentSessionKey(state.sessionKey);
@@ -404,7 +438,12 @@ export function renderApp(state: AppViewState) {
         loading: state.calendarLoading,
         error: state.calendarError,
         feedUrl: state.calendarFeedUrl,
-        events: state.calendarEvents,
+        events: [...state.calendarEvents, ...state.calendarLocalEvents].toSorted(
+          (a, b) => a.startMs - b.startMs,
+        ),
+        cursorMonthMs: state.calendarCursorMonthMs,
+        selectedDate: state.calendarSelectedDate,
+        draft: state.calendarDraft,
         lastLoadedAt: state.calendarLastLoadedAt,
         onFeedUrlChange: (next) => {
           state.calendarFeedUrl = next;
@@ -414,6 +453,94 @@ export function renderApp(state: AppViewState) {
           });
         },
         onReload: () => state.loadCalendar(),
+        onPrevMonth: () => {
+          const cursor = new Date(state.calendarCursorMonthMs);
+          state.calendarCursorMonthMs = new Date(
+            cursor.getFullYear(),
+            cursor.getMonth() - 1,
+            1,
+          ).getTime();
+        },
+        onNextMonth: () => {
+          const cursor = new Date(state.calendarCursorMonthMs);
+          state.calendarCursorMonthMs = new Date(
+            cursor.getFullYear(),
+            cursor.getMonth() + 1,
+            1,
+          ).getTime();
+        },
+        onToday: () => {
+          const todayKey = dateKeyFromMs(Date.now());
+          state.calendarSelectedDate = todayKey;
+          state.calendarCursorMonthMs = startOfMonthMs(Date.now());
+          state.calendarDraft = { ...state.calendarDraft, date: todayKey };
+        },
+        onSelectDate: (date) => {
+          state.calendarSelectedDate = date;
+          state.calendarDraft = { ...state.calendarDraft, date };
+        },
+        onDraftChange: (patch) => {
+          state.calendarDraft = { ...state.calendarDraft, ...patch };
+        },
+        onAddEvent: () => {
+          const draft = state.calendarDraft;
+          const summary = draft.summary.trim();
+          if (!summary) {
+            state.calendarError = "Event title is required.";
+            return;
+          }
+          if (!draft.date.trim()) {
+            state.calendarError = "Event date is required.";
+            return;
+          }
+          let startMs: number | null = null;
+          let endMs: number | null = null;
+          if (draft.allDay) {
+            startMs = parseLocalDateTime(draft.date, "00:00");
+            if (startMs != null) {
+              endMs = startMs + 24 * 60 * 60 * 1000;
+            }
+          } else {
+            startMs = parseLocalDateTime(draft.date, draft.startTime);
+            endMs = parseLocalDateTime(draft.date, draft.endTime);
+            if (startMs == null || endMs == null) {
+              state.calendarError = "Start and end time are required.";
+              return;
+            }
+            if (endMs <= startMs) {
+              state.calendarError = "End time must be after start time.";
+              return;
+            }
+          }
+          if (startMs == null) {
+            state.calendarError = "Invalid event date.";
+            return;
+          }
+          const localEvent = {
+            uid: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            summary,
+            description: draft.description.trim() || null,
+            location: draft.location.trim() || null,
+            startMs,
+            endMs,
+            allDay: draft.allDay,
+            source: "local",
+          };
+          state.upsertLocalCalendarEvent(localEvent);
+          state.calendarError = null;
+          state.calendarSelectedDate = draft.date;
+          state.calendarCursorMonthMs = startOfMonthMs(startMs);
+          state.calendarDraft = {
+            ...state.calendarDraft,
+            summary: "",
+            location: "",
+            description: "",
+            date: draft.date,
+          };
+        },
+        onRemoveLocalEvent: (uid) => {
+          state.removeLocalCalendarEvent(uid);
+        },
       })
       : nothing
     }

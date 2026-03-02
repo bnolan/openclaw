@@ -658,3 +658,13 @@ export type CalendarEvent = {
   allDay: boolean;
   source: string;
 };
+
+export type CalendarDraftEvent = {
+  summary: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
+  location: string;
+  description: string;
+};
